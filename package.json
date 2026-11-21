@@ -1,0 +1,12 @@
+{
+  "name": "securebank02-root",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npm --prefix SecureBank02 run dev",
+    "start": "npm --prefix SecureBank02 run dev",
+    "build": "npm --prefix SecureBank02 run build",
+    "server": "npm --prefix SecureBank02 run server",
+    "client": "npm --prefix SecureBank02 run client"
+  }
+}
+
