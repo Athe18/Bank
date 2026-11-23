@@ -33,13 +33,21 @@ const sessionOptions = {
   }
 };
 
-// If MongoDB URI is available, persist sessions in MongoDB
-if (process.env.MONGODB_URI) {
+// Use MongoStore only on Vercel with Atlas or when explicitly requested with a valid cloud/live URI
+const hasCloudMongo = process.env.MONGODB_URI && (
+  process.env.MONGODB_URI.startsWith("mongodb+srv://") ||
+  process.env.VERCEL ||
+  process.env.USE_MONGO_STORE === "true"
+);
+
+if (hasCloudMongo) {
   try {
     sessionOptions.store = MongoStore.create({
       mongoUrl: process.env.MONGODB_URI,
       collectionName: "sessions",
-      ttl: 24 * 60 * 60
+      ttl: 24 * 60 * 60,
+      autoRemove: "interval",
+      autoRemoveInterval: 10
     });
   } catch (err) {
     console.warn("[Session Store] Notice:", err.message);
@@ -56,7 +64,7 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Customer Auth Middleware
+// Customer Auth Middleware (for protected data operations)
 function requireCustomer(req, res, next) {
   if (!req.session.customerId) {
     return res.status(401).json({
@@ -66,7 +74,7 @@ function requireCustomer(req, res, next) {
   next();
 }
 
-// Admin Auth Middleware
+// Admin Auth Middleware (for protected admin operations)
 function requireAdmin(req, res, next) {
   if (!req.session.isAdmin) {
     return res.status(401).json({
@@ -174,12 +182,16 @@ app.post("/api/login", async (req, res, next) => {
     }
 
     req.session.regenerate(async error => {
-      if (error) return next(error);
+      if (error) {
+        console.warn("Session regenerate warning:", error.message);
+      }
 
       req.session.customerId = customer.id;
 
       req.session.save(async saveError => {
-        if (saveError) return next(saveError);
+        if (saveError) {
+          console.warn("Session save warning:", saveError.message);
+        }
 
         const safeCustomer = await dbService.findCustomerById(customer.id);
         res.json({
@@ -193,12 +205,16 @@ app.post("/api/login", async (req, res, next) => {
   }
 });
 
-// CURRENT CUSTOMER PROFILE
-app.get("/api/me", requireCustomer, async (req, res, next) => {
+// CURRENT CUSTOMER PROFILE (Returns 200 with { customer: null } if unauthenticated)
+app.get("/api/me", async (req, res, next) => {
   try {
+    if (!req.session.customerId) {
+      return res.json({ customer: null });
+    }
+
     const customer = await dbService.findCustomerById(req.session.customerId);
     if (!customer) {
-      return res.status(404).json({ message: "Account not found." });
+      return res.json({ customer: null });
     }
     res.json({ customer });
   } catch (error) {
@@ -324,7 +340,8 @@ app.post("/api/admin/login", async (req, res, next) => {
         req.session.isAdmin = true;
         req.session.adminUser = defaultUser;
         req.session.adminRole = "Super Admin";
-        return req.session.save(() => {
+        return req.session.save(saveErr => {
+          if (saveErr) console.warn("Admin session save warning:", saveErr.message);
           res.json({
             message: "Admin authenticated successfully.",
             admin: { username: defaultUser, role: "Super Admin" }
@@ -345,7 +362,7 @@ app.post("/api/admin/login", async (req, res, next) => {
     req.session.adminRole = admin.role || "Administrator";
 
     req.session.save(err => {
-      if (err) return next(err);
+      if (err) console.warn("Admin session save warning:", err.message);
       res.json({
         message: "Admin authenticated successfully.",
         admin: {
@@ -360,10 +377,14 @@ app.post("/api/admin/login", async (req, res, next) => {
   }
 });
 
-// CURRENT ADMIN SESSION
+// CURRENT ADMIN SESSION (Returns 200 with { isAdmin: false } if unauthenticated)
 app.get("/api/admin/me", (req, res) => {
   if (!req.session.isAdmin) {
-    return res.status(401).json({ message: "Not logged in as admin." });
+    return res.json({
+      isAdmin: false,
+      databaseEngine: dbState.databaseEngine,
+      isMongoConnected: dbState.isMongoConnected
+    });
   }
   res.json({
     isAdmin: true,

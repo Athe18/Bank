@@ -410,3 +410,4 @@ sequenceDiagram
     Browser->>Browser: Update customer state, prepend transaction to list
     Browser-->>Customer: Visual confirmation toast & live balance ticker updates to ₹23,500
 ```
+

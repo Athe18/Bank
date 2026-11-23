@@ -125,16 +125,18 @@ function App() {
     // Check Customer Session
     api("/api/me")
       .then(async res => {
-        setCustomer(res.customer);
-        const txRes = await api("/api/transactions");
-        setTransactions(txRes.transactions || []);
+        if (res && res.customer) {
+          setCustomer(res.customer);
+          const txRes = await api("/api/transactions");
+          setTransactions(txRes.transactions || []);
+        }
       })
       .catch(() => {});
 
     // Check Admin Session
     api("/api/admin/me")
       .then(res => {
-        if (res.isAdmin) {
+        if (res && res.isAdmin) {
           setAdmin({ username: res.username, role: res.role });
           loadAdminDashboard();
         }
