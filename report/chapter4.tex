@@ -14,7 +14,7 @@ SecureBank follows an enterprise four-tier decoupled architectural model as depi
 \centering
 \begin{tikzpicture}[node distance=1.8cm, auto]
     \tikzstyle{block} = [rectangle, draw, fill=blue!10, text width=9em, text centered, rounded corners, minimum height=3em]
-    \tikzstyle{line} = [draw, -latex', thick]
+    \tikzstyle{line} = [draw, ->, thick]
     
     \node [block] (client) {\textbf{Presentation Tier}\\React 19 SPA (Vite)};
     \node [block, right=2cm of client] (proxy) {\textbf{Proxy Tier}\\Vite Proxy / Vercel Edge};
@@ -43,7 +43,7 @@ Figure \ref{fig:dfd0} illustrates the context-level data flow diagram showing in
 \begin{tikzpicture}[node distance=3cm, auto]
     \tikzstyle{entity} = [rectangle, draw, fill=gray!20, minimum width=3cm, minimum height=1.2cm, text centered]
     \tikzstyle{process} = [circle, draw, fill=blue!15, minimum size=3cm, text width=2.6cm, text centered]
-    \tikzstyle{line} = [draw, -latex', thick]
+    \tikzstyle{line} = [draw, ->, thick]
     
     \node [entity] (cust) {Customer};
     \node [process, right=2.5cm of cust] (sys) {\textbf{SecureBank Central System}};

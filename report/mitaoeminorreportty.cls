@@ -55,8 +55,9 @@
 % Title Page Definition
 % -------------------------------------------------------------
 \renewcommand{\titlepage}{%
-  \begin{titlepage}
-    \centering
+  \cleardoublepage
+  \thispagestyle{empty}
+  \begin{center}
     \vspace*{0.5cm}
     {\large \textbf{A MINOR PROJECT REPORT ON}}\\[0.8cm]
     
@@ -87,7 +88,8 @@
     {\normalsize \textit{(An Autonomous Institute Affiliated to Savitribai Phule Pune University)}}\\[0.2cm]
     {\normalsize Alandi (D.), Pune -- 412105, Maharashtra, India}\\[0.4cm]
     {\large \textbf{ACADEMIC YEAR \@academicyear}}\\[0.5cm]
-  \end{titlepage}
+  \end{center}
+  \newpage
 }
 
 % -------------------------------------------------------------
