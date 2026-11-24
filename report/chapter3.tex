@@ -1,0 +1,88 @@
+\chapter{System Requirements and Analysis}
+
+\section{Requirements Gathering and User Personas}
+Requirements analysis was conducted by evaluating banking operational standards and defining two primary user personas:
+\begin{enumerate}
+    \item \textbf{Retail Banking Customer (Persona A):} An end-user seeking an intuitive web portal to register an account, inspect real-time available funds, simulate credit/debit transactions, and maintain account privacy.
+    \item \textbf{System Administrator (Persona B):} A financial operations auditor requiring global visibility across all registered accounts, audit monitoring of system transactions, liquidity intervention capabilities, and administrative user management.
+\end{enumerate}
+
+\section{Functional Requirements}
+The functional capabilities of SecureBank are categorized into four major subsystems:
+
+\subsection{Customer Authentication and Account Management}
+\begin{itemize}
+    \item \textbf{FR-1 (Customer Onboarding):} The system shall provide a registration portal validating full name, unique email address, 10-digit mobile phone number, valid date of birth ($\le \text{current date}$), account type (Savings/Current), and a password of minimum 8 characters.
+    \item \textbf{FR-2 (Initial Balance Provisioning):} Upon account creation, the system shall credit an initial demo balance of ₹10,000.
+    \item \textbf{FR-3 (Secure Authentication):} The system shall authenticate customers via email and password using constant-time hash comparisons, issuing an encrypted session cookie.
+    \item \textbf{FR-4 (Session Termination):} The system shall permit customers to log out, immediately destroying the server-side session and clearing client cookies.
+    \item \textbf{FR-5 (Self-Service Deletion):} Customers shall be empowered to permanently purge their account and transaction ledger with cascading removal.
+\end{itemize}
+
+\subsection{Transaction and Ledger Management}
+\begin{itemize}
+    \item \textbf{FR-6 (Debit Simulation):} The system shall allow customers to initiate debit transactions, strictly enforcing that the requested amount does not exceed the customer's current balance.
+    \item \textbf{FR-7 (Credit Simulation):} The system shall permit deposit transactions up to a safety threshold of ₹1,000,000 per transaction.
+    \item \textbf{FR-8 (Atomic Balance Update):} Balance calculation and ledger insertion shall be executed atomically.
+    \item \textbf{FR-9 (Transaction History Feed):} The customer dashboard shall render the 50 most recent transactions with type indicators (credit/debit), formatted currency, and localized timestamps.
+\end{itemize}
+
+\subsection{Administrative Control and Governance}
+\begin{itemize}
+    \item \textbf{FR-10 (Admin Authentication):} The system shall provide a dedicated admin entry point accepting administrative credentials (\texttt{admin} / \texttt{admin123}).
+    \item \textbf{FR-11 (System Metric Aggregation):} The admin dashboard shall calculate and display total registered accounts, aggregate vault balance (sum of all balances), and total system transactions.
+    \item \textbf{FR-12 (Customer Directory Search):} Admins shall be able to search and filter customer records dynamically by name, email, or telephone.
+    \item \textbf{FR-13 (Administrative Balance Intervention):} Admins shall have the authority to credit or debit any customer account directly with an audit memorandum.
+    \item \textbf{FR-14 (Administrative Account Revocation):} Admins shall be authorized to delete rogue or inactive customer accounts with cascading transaction removal.
+    \item \textbf{FR-15 (Global Audit Stream):} The admin portal shall display an enterprise-wide ledger of transactions performed across all customer accounts.
+\end{itemize}
+
+\subsection{Dual-Engine Persistence}
+\begin{itemize}
+    \item \textbf{FR-16 (Primary MongoDB Persistence):} The system shall route all queries to MongoDB when reachable.
+    \item \textbf{FR-17 (Secondary SQLite Failover):} If MongoDB is offline, the system shall automatically fallback to local embedded SQLite without terminating the application process.
+    \item \textbf{FR-18 (Automatic Migration):} When an empty MongoDB instance connects, the system shall automatically migrate local SQLite records to MongoDB collections.
+\end{itemize}
+
+\section{Non-Functional Requirements}
+\begin{itemize}
+    \item \textbf{NFR-1 (Security):} Passwords shall never be stored in plaintext. They must be salted and hashed with a Bcrypt cost factor of 12. Sessions must use \texttt{httpOnly} and \texttt{SameSite} flags.
+    \item \textbf{NFR-2 (Performance and Latency):} Client-side page navigation within the SPA shall be instantaneous ($<50$ ms). API response latency under local conditions shall remain below 100 ms.
+    \item \textbf{NFR-3 (Reliability and Fault Tolerance):} In the event of primary database failure, the system must maintain 100\% uptime by shifting read/write operations to the secondary engine.
+    \item \textbf{NFR-4 (Usability and Aesthetics):} The user interface must comply with the Aceternity Studio design standard, presenting dashed architectural grids, high-contrast typography, and full responsiveness on desktop, tablet, and mobile displays.
+    \item \textbf{NFR-5 (Maintainability):} All database operations must be isolated within a unified service abstraction (\texttt{dbService}) to ensure clean separation of concerns.
+\end{itemize}
+
+\section{Hardware and Software Requirements}
+
+\subsection{Hardware Requirements}
+\begin{itemize}
+    \item \textbf{Processor:} Dual-Core x86\_64 or ARM64 CPU @ 2.0 GHz or higher.
+    \item \textbf{Memory (RAM):} Minimum 4 GB (8 GB recommended for concurrent local MongoDB execution).
+    \item \textbf{Storage:} 500 MB free hard disk space.
+    \item \textbf{Network:} Active internet connection (required for initial npm package retrieval, CDN Google fonts, and MongoDB Atlas connectivity).
+\end{itemize}
+
+\subsection{Software Requirements}
+\begin{itemize}
+    \item \textbf{Operating System:} Microsoft Windows 10/11, macOS Monterey+, or Linux (Ubuntu 22.04 LTS+).
+    \item \textbf{Runtime Environment:} Node.js v20.x or v24.x LTS.
+    \item \textbf{Package Manager:} npm v10.x / v11.x.
+    \item \textbf{Web Browser:} Chromium-based browsers (Google Chrome, Microsoft Edge, Brave) or Mozilla Firefox with JavaScript enabled.
+    \item \textbf{Database Engines:} MongoDB v6.0+ (or MongoDB Atlas Cloud) and SQLite 3 (embedded).
+    \item \textbf{Developer Tools:} Visual Studio Code, Git, Vercel CLI.
+\end{itemize}
+
+\section{Feasibility Study}
+
+\subsection{Technical Feasibility}
+The system leverages mature, highly tested open-source frameworks: React 19, Vite, Express 5, Mongoose 9, and Better-SQLite3. Vite ensures fast builds and tree-shaking, while Express provides a battle-tested middleware ecosystem. Node.js native asynchronous I/O easily supports high-concurrency banking simulations. The technical architecture is fully feasible.
+
+\subsection{Operational Feasibility}
+The platform requires no client-side software installation; users simply access the web URL. The administrative portal is self-explanatory, complete with automated credential auto-fill for testing. The dual-engine storage ensures zero-maintenance operation during offline evaluation. Operational feasibility is outstanding.
+
+\subsection{Economic Feasibility}
+The entire application stack is constructed with open-source technologies under MIT and Apache licenses. Local execution incurs zero licensing cost, and deployment to cloud platforms like Vercel and MongoDB Atlas operates entirely within free-tier quotas. The project is highly economically viable.
+
+\subsection{Legal and Security Feasibility}
+SecureBank complies with modern data protection principles: passwords are irreversibly hashed, session tokens are locked to HTTP headers, and user profiles can be deleted on demand (satisfying "Right to Erasure" principles). Since no real monetary assets or proprietary banking rails are involved, no regulatory licensing is violated.

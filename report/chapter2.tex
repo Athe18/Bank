@@ -1,0 +1,62 @@
+\chapter{Literature Survey}
+
+\section{Overview of Modern Financial Web Architecture}
+Financial technology (FinTech) systems demand rigorous computational engineering. Over the past decade, architectural patterns have migrated from server-rendered multi-page applications (MPAs) toward decoupled Single-Page Applications (SPAs) communicating with RESTful or GraphQL microservices over Transport Layer Security (TLS). 
+
+Research by Fielding \cite{fielding2000architectural} established the foundations of representational state transfer (REST), emphasizing stateless client-server interactions. In financial applications, maintaining state securely while preserving stateless communication requires robust session management mechanisms. Modern literature \cite{owasp2021top} highlights that token-based architectures (such as JSON Web Tokens stored in HTML5 LocalStorage) introduce severe vulnerabilities to Cross-Site Scripting (XSS) exploitation. Consequently, cryptographic cookie-based session stores managed via signed, \texttt{httpOnly}, and \texttt{SameSite} attributes remain the recommended gold standard for high-security banking gateways.
+
+\section{Review of Existing Systems}
+To establish the necessity and innovation of SecureBank, we reviewed three dominant paradigms in banking software engineering:
+
+\subsection{Traditional Relational Monolithic Banking Portals}
+Historically, digital banking was built on monolithic enterprise stacks (e.g., Java Enterprise Edition or ASP.NET) tightly coupled to centralized relational databases (e.g., Oracle Database or IBM DB2). While offering ACID (Atomicity, Consistency, Isolation, Durability) guarantees, these systems exhibit:
+\begin{itemize}
+    \item High deployment inertia and tight coupling between presentation and business logic.
+    \item Severe performance degradation during horizontal scaling due to centralized locking contention.
+    \item Cluttered and rigid user interfaces that lack mobile responsiveness.
+\end{itemize}
+
+\subsection{Standard Educational and Open-Source Banking Simulators}
+Various academic and open-source banking simulators exist for didactic purposes (e.g., OWASP Juice Shop, WebGoat banking modules, and basic MERN repositories). An analysis of these systems reveals significant shortcomings:
+\begin{itemize}
+    \item Passwords are often encrypted with unkeyed MD5 or SHA-256 hashes without adaptive work factors, leaving them vulnerable to GPU-accelerated dictionary attacks.
+    \item Database dependency is rigid: if a remote database URI is unreachable, the Node.js process immediately terminates with an uncaught exception (\texttt{ECONNREFUSED}).
+    \item Lack of a centralized administrative oversight console to audit cross-customer transactions or dynamically adjust ledger anomalies.
+\end{itemize}
+
+\subsection{Cloud-Native Microservices Financial Architectures}
+Enterprise platforms (such as Stripe, Revolut, and Monzo) utilize distributed event-driven microservices. While highly scalable, implementing such architectures for intermediate or agile projects introduces excessive operational overhead, network latency orchestration, distributed transaction failure modes (such as two-phase commit overhead), and substantial cloud infrastructure costs.
+
+\section{Comparative Analysis of Related Systems}
+Table \ref{tab:comparison} summarizes the comparative features of existing banking implementations against SecureBank.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparative Analysis of Banking Architecture Frameworks}
+\label{tab:comparison}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Feature / Metric} & \textbf{Legacy Monoliths} & \textbf{Open-Source Demos} & \textbf{Enterprise Microservices} & \textbf{SecureBank (Proposed)} \\ \midrule
+Client Architecture & Server-Rendered MPA & Basic React/Vue SPA & Multi-Platform Micro-frontends & React 19 SPA (Vite Bundled) \\
+UI Design Standard & Cluttered Tables & Generic Bootstrap/MUI & Proprietary Design System & Aceternity Architectural Studio \\
+Password Security & Legacy Hash (SHA-1/256) & Plaintext / MD5 & Argon2 / Bcrypt & Bcrypt (12 Salt Rounds) \\
+Session Management & In-Memory Server Sticky & LocalStorage JWT & Distributed Redis Clusters & Signed \texttt{httpOnly} + MongoStore \\
+Database Coupling & Rigid SQL Engine & Hardcoded MongoDB & Distributed Polyglot & \textbf{Dual-Engine (Mongo + SQLite)} \\
+Offline Tolerance & Nil (Crashes) & Nil (Unhandled Rejection) & Multi-Region Redundancy & \textbf{Automatic Zero-Crash Fallback} \\
+Admin Control Plane & Separate Internal Tool & Usually Omitted & Complex Enterprise Dashboard & \textbf{Integrated RBAC Console} \\
+Deployment Model & Bare Metal / VM & Localhost Only & Kubernetes / AWS ECS & \textbf{Serverless Cloud (Vercel)} \\ \bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Identified Technical Gaps}
+From the literature and system analysis, three critical technical gaps were identified:
+\begin{enumerate}
+    \item \textbf{Absence of Dynamic Multi-Engine Failover in Intermediate Web Applications:} Almost all Node.js financial frameworks crash during startup if their target MongoDB daemon is unavailable. A lightweight, synchronous database adapter capable of falling back to embedded local storage with automatic data migration upon reconnection is virtually nonexistent in standard educational stacks.
+    \item \textbf{Inadequate Administrative Intervention Tools:} Most banking prototypes focus entirely on the end-user customer flow while ignoring administrative governance, leaving no interface for ledger corrections, audit trail monitoring, or manual liquidity management.
+    \item \textbf{Visual and Architectural Disconnect in Web Security:} Visual aesthetic is often treated as secondary to security. However, empirical user experience research shows that visual hierarchy, clear typographic cues, and minimal visual noise significantly reduce user operational error in financial workflows.
+\end{enumerate}
+
+\section{Summary}
+The literature confirms that while advanced enterprise systems achieve high resilience at immense complexity and cost, entry-to-intermediate banking systems remain fragile and insecure. SecureBank bridges this divide by delivering enterprise security patterns (Bcrypt, \texttt{httpOnly} cookie sessions, dual-engine persistence) within an elegant, serverless-ready architectural framework.

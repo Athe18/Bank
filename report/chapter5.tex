@@ -1,0 +1,146 @@
+\chapter{Implementation Details}
+
+\section{Core Algorithms and Mathematical Formulations}
+
+\subsection{Bcrypt Salted Key Derivation Algorithm}
+To safeguard customer credentials, SecureBank employs the Eksblowfish-based Bcrypt key derivation function \cite{provos1999bcrypt}. Traditional unkeyed hashes (e.g., MD5, SHA-256) evaluate in microseconds on modern GPUs, rendering them vulnerable to brute-force dictionary attacks.
+
+Bcrypt enforces an adaptive cost factor parameter $W \in [4, 31]$. SecureBank establishes $W = 12$, dictating that the key schedule undergoes:
+\begin{equation}
+N = 2^W = 2^{12} = 4096 \text{ hashing iterations}
+\end{equation}
+
+The hashing algorithm proceeds in three stages:
+\begin{enumerate}
+    \item A cryptographically secure random 128-bit salt $S$ is generated using the OS entropy source.
+    \item The Eksblowfish key schedule is initialized using the salt $S$ and the raw password $P$.
+    \item The state is iteratively expanded $2^{12}$ times, resisting precomputed rainbow table lookups and custom ASIC attacks:
+\end{enumerate}
+
+\begin{lstlisting}[language=JavaScript, caption={Bcrypt Hash Generation Implementation}]
+// Password Encryption during Account Registration
+const SALT_ROUNDS = 12;
+const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+// Constant-Time Verification during Login
+const isMatch = await bcrypt.compare(candidatePassword, storedHash);
+\end{lstlisting}
+
+\subsection{Cryptographic Session Security}
+Rather than storing volatile JWT tokens in browser LocalStorage, SecureBank configures stateful, cryptographic session handling:
+\begin{itemize}
+    \item \textbf{Token Generation:} On authentication, Express generates a cryptographically random 128-bit session identifier.
+    \item \textbf{HMAC Signing:} The session ID is signed using a secret key $K_{sec}$ via HMAC-SHA256:
+    \begin{equation}
+        \text{CookieSignature} = \text{HMAC-SHA256}(s_{id}, K_{sec})
+    \end{equation}
+    \item \textbf{Tamper Resistance:} When the browser returns \texttt{s:sessionId.signature}, the server recomputes the HMAC. If the signature does not match, the session is invalidated immediately.
+\end{itemize}
+
+\subsection{Atomic Double-Entry Ledger Mathematical Model}
+Let $B_t$ denote the customer's available balance at time step $t$. When a transaction request of magnitude $A > 0$ and type $T \in \{\text{credit}, \text{debit}\}$ arrives, the state transition function is defined as:
+\begin{equation}
+B_{t+1} = 
+\begin{cases} 
+B_t + A, & \text{if } T = \text{credit} \\
+B_t - A, & \text{if } T = \text{debit} \land B_t \ge A \\
+\text{Reject (Error 400)}, & \text{if } T = \text{debit} \land B_t < A 
+\end{cases}
+\end{equation}
+The transaction record $\mathcal{R} = \{id, customer\_id, A, T, B_{t+1}, t_{timestamp}\}$ is appended simultaneously.
+
+\section{Dual-Engine Persistence Implementation}
+The persistence layer (\texttt{server/db.js}) implements an adaptive failover architecture. Listing \ref{lst:dual_engine} demonstrates how Mongoose is initialized with a non-blocking timeout while safely establishing fallback mechanisms.
+
+\begin{lstlisting}[language=JavaScript, caption={Serverless-Aware MongoDB and SQLite Initializer}, label={lst:dual_engine}]
+let cached = global.mongoose || (global.mongoose = { conn: null, promise: null });
+
+export async function initMongo() {
+  const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/securebank";
+  if (cached.conn && mongoose.connection.readyState === 1) {
+    dbState.isMongoConnected = true;
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 4000 // Fast failover boundary
+    }).then(async m => {
+      dbState.isMongoConnected = true;
+      dbState.databaseEngine = "MongoDB (Mongoose)";
+      return m;
+    }).catch(err => {
+      cached.promise = null;
+      dbState.isMongoConnected = false;
+      dbState.databaseEngine = sqliteDb ? "SQLite (Fallback mode)" : "Offline";
+      return null;
+    });
+  }
+  return cached.conn = await cached.promise;
+}
+\end{lstlisting}
+
+\section{Unified Data Access Layer (dbService)}
+To decouple business logic from underlying database drivers, all controller methods interact strictly with \texttt{dbService}. Listing \ref{lst:dbservice} highlights the dynamic dispatch mechanism for transaction creation.
+
+\begin{lstlisting}[language=JavaScript, caption={Unified Transaction Creation with Atomic Fallback}, label={lst:dbservice}]
+async createTransaction({ customerId, customerName, customerEmail, description, amount, type, newBalance }) {
+  if (dbState.isMongoConnected && mongoose.Types.ObjectId.isValid(customerId)) {
+    // 1. Update Customer Balance Document
+    await CustomerModel.findByIdAndUpdate(customerId, { balance: newBalance });
+    // 2. Insert Transaction Document
+    const tx = await TransactionModel.create({
+      customer_id: customerId,
+      customer_name: customerName,
+      customerEmail,
+      description: description.trim(),
+      amount,
+      type,
+      balance_after: newBalance
+    });
+    return { id: tx._id.toString() };
+  }
+
+  // Fallback: Atomic SQLite Transaction
+  const executeSqlite = sqliteDb.transaction(() => {
+    sqliteDb.prepare("UPDATE customers SET balance = ? WHERE id = ?").run(newBalance, customerId);
+    const res = sqliteDb.prepare(`
+      INSERT INTO transactions (customer_id, description, amount, type)
+      VALUES (?, ?, ?, ?)
+    `).run(customerId, description.trim(), amount, type);
+    return res.lastInsertRowid;
+  });
+
+  return { id: executeSqlite().toString() };
+}
+\end{lstlisting}
+
+\section{Frontend Architecture and State Management}
+The frontend Single-Page Application is implemented within \texttt{client/src/main.jsx}. State is orchestrated through declarative React hooks:
+\begin{itemize}
+    \item \texttt{page}: Controls active view rendering without page reloads (\texttt{home}, \texttt{process}, \texttt{showcase}, \texttt{reviews}, \texttt{signup}, \texttt{login}, \texttt{dashboard}, \texttt{profile}, \texttt{admin-login}, \texttt{admin-dashboard}).
+    \item \texttt{customer} / \texttt{admin}: Holds verified session identities and permissions.
+    \item \texttt{transactions}: Holds an array of recent activity records.
+    \item \texttt{money(amount)}: Formats numerical values using \texttt{Intl.NumberFormat} with the Indian Rupee symbol (\texttt{INR}), ensuring accurate two-decimal precision.
+\end{itemize}
+
+\section{Vercel Serverless Function Adapter}
+In traditional Node.js deployments, \texttt{app.listen(PORT)} runs indefinitely. To deploy seamlessly on serverless infrastructure, SecureBank exports the Express application as a lambda handler in \texttt{api/index.js}:
+
+\begin{lstlisting}[language=JavaScript, caption={Serverless Lambda Entry Point}]
+import app from "../server/index.js";
+export default app;
+\end{lstlisting}
+
+Coupled with \texttt{vercel.json}, incoming API calls are seamlessly mapped to the serverless function while static assets are served from the prebuilt Vite directory:
+\begin{lstlisting}[language=json, caption={Vercel Serverless Rewrite Configuration}]
+{
+  "version": 2,
+  "buildCommand": "vite build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+\end{lstlisting}

@@ -1,0 +1,11 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+In the era of modern digital finance, web applications require stringent security standards, high-throughput asynchronous request handling, and fault-tolerant persistent storage without compromising user experience. This report presents \textbf{SecureBank}, an enterprise-grade digital banking simulation platform engineered with a decoupled full-stack architecture. 
+
+The frontend utilizes a modern Single-Page Application (SPA) built with React 19 and bundled via Vite, integrating an architectural design system inspired by the Aceternity Studio specification featuring dashed blueprint gridlines, floating glassmorphic navigation, and responsive bento cards. The backend is implemented in Node.js and Express 5, implementing a multi-layered security pipeline including 12-round salted key derivation using Bcrypt, cryptographic session handling via signed \texttt{httpOnly} cookies, and role-based access control (RBAC).
+
+A cornerstone innovation of SecureBank is its \textbf{Dual-Engine Persistence Layer}, which prioritizes a cloud-native MongoDB document store managed through the Mongoose Object-Document Mapper (ODM) with automatic failover to an embedded SQLite database configured with Write-Ahead Logging (WAL). This guarantees zero application crashes in disconnected or local developer environments while supporting high-throughput cloud environments such as MongoDB Atlas. Furthermore, a dedicated Administrative Control Plane provides real-time transaction ledger auditing, customer lifecycle governance, and manual liquidity adjustments. The platform is configured for serverless execution on Vercel via reverse proxy trust and centralized session persistence.
+
+\vspace{0.8cm}
+\noindent \textbf{Keywords:} Financial Technology, Single-Page Application, React 19, Express.js, Bcrypt, Session Security, MongoDB, Dual-Engine Persistence, Serverless Architecture, Role-Based Access Control.

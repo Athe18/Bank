@@ -1,0 +1,77 @@
+\chapter*{Appendix}
+\addcontentsline{toc}{chapter}{Appendix}
+
+\section*{Appendix A: Complete REST API Endpoint Specification}
+
+Table \ref{tab:api_spec} outlines the complete RESTful API contract for SecureBank.
+
+\begin{table}[htbp]
+\centering
+\caption{SecureBank REST API Specification}
+\label{tab:api_spec}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lllll@{}}
+\toprule
+\textbf{HTTP Method} & \textbf{Endpoint Route} & \textbf{Authorization} & \textbf{Payload Body} & \textbf{Expected Status} \\ \midrule
+\texttt{GET} & \texttt{/api/status} & Public & None & 200 OK \\
+\texttt{POST} & \texttt{/api/signup} & Public & \texttt{\{name, email, phone, dob, accountType, password\}} & 201 Created / 409 Conflict \\
+\texttt{POST} & \texttt{/api/login} & Public & \texttt{\{email, password\}} & 200 OK / 401 Unauthorized \\
+\texttt{GET} & \texttt{/api/me} & Public (Safe) & None & 200 OK (\texttt{\{customer: null\}} if unauth) \\
+\texttt{GET} & \texttt{/api/transactions} & Customer Session & None & 200 OK / 401 Unauthorized \\
+\texttt{POST} & \texttt{/api/demo-transaction} & Customer Session & \texttt{\{description, amount, type\}} & 200 OK / 400 Bad Request \\
+\texttt{DELETE} & \texttt{/api/account} & Customer Session & None & 200 OK / 404 Not Found \\
+\texttt{POST} & \texttt{/api/logout} & Public & None & 200 OK \\
+\texttt{POST} & \texttt{/api/admin/login} & Public & \texttt{\{username, password\}} & 200 OK / 401 Unauthorized \\
+\texttt{GET} & \texttt{/api/admin/me} & Public (Safe) & None & 200 OK (\texttt{\{isAdmin: false\}} if unauth) \\
+\texttt{GET} & \texttt{/api/admin/stats} & Admin Session & None & 200 OK / 401 Unauthorized \\
+\texttt{GET} & \texttt{/api/admin/customers} & Admin Session & None & 200 OK / 401 Unauthorized \\
+\texttt{GET} & \texttt{/api/admin/transactions} & Admin Session & None & 200 OK / 401 Unauthorized \\
+\texttt{POST} & \texttt{/api/admin/adjust-balance}& Admin Session & \texttt{\{customerId, amount, type, description\}} & 200 OK / 400 Bad Request \\
+\texttt{DELETE} & \texttt{/api/admin/customers/:id} & Admin Session & None & 200 OK / 404 Not Found \\
+\texttt{POST} & \texttt{/api/admin/logout} & Admin Session & None & 200 OK \\ \bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section*{Appendix B: Installation and Execution Guide}
+
+\subsection*{Prerequisites}
+Ensure that Node.js (version 20 or higher) and npm are installed on the workstation.
+
+\subsection*{Step-by-Step Local Setup}
+\begin{enumerate}
+    \item \textbf{Clone the Repository:}
+    \begin{lstlisting}[language=bash]
+    git clone https://github.com/Athe18/Bank.git
+    cd Bank/SecureBank02
+    \end{lstlisting}
+
+    \item \textbf{Install Dependencies:}
+    \begin{lstlisting}[language=bash]
+    npm install
+    \end{lstlisting}
+
+    \item \textbf{Configure Environment Variables (\texttt{server/.env}):}
+    \begin{lstlisting}[language=bash]
+    PORT=5000
+    MONGODB_URI=mongodb://127.0.0.1:27017/securebank
+    SESSION_SECRET=securebank-ultra-secret-key-change-in-production-2026
+    ADMIN_USERNAME=admin
+    ADMIN_PASSWORD=admin123
+    \end{lstlisting}
+
+    \item \textbf{Run Concurrent Development Server:}
+    \begin{lstlisting}[language=bash]
+    npm run dev
+    \end{lstlisting}
+    \begin{itemize}
+        \item Frontend Application: \url{http://127.0.0.1:5173}
+        \item Backend REST API: \url{http://127.0.0.1:5000}
+    \end{itemize}
+\end{enumerate}
+
+\section*{Appendix C: Pre-Configured Test Credentials}
+\begin{itemize}
+    \item \textbf{Default Administrator:} Username: \texttt{admin} $\mid$ Password: \texttt{admin123}
+    \item \textbf{Default Demo Customer:} Create new account via ``Open Account'' (instantly provisioned with ₹10,000 balance).
+\end{itemize}

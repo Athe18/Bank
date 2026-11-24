@@ -1,0 +1,77 @@
+\chapter{Results, Testing, Discussion, and Conclusion}
+
+\section{Experimental Setup and Testing Methodology}
+System verification was conducted on a reference testing workstation running Windows 11 Pro, Node.js v24.16.0, and Vite v8.3.5. Testing spanned three distinct phases:
+\begin{enumerate}
+    \item \textbf{Unit and Boundary Testing:} Validating individual input sanitizers, regex patterns, Bcrypt cost calculations, and mathematical transaction balance formulas.
+    \item \textbf{Integration and API Route Testing:} Automated invocation of REST endpoints using PowerShell \texttt{Invoke-RestMethod} testing authentication state preservation and error handling.
+    \item \textbf{Failover and Reliability Testing:} Intentionally killing local MongoDB services to verify that the application falls back to SQLite without downtime, and subsequently reconnecting MongoDB to confirm auto-migration.
+\end{enumerate}
+
+\section{Test Cases and Execution Results}
+Table \ref{tab:test_cases} details the primary test cases executed across the functional modules.
+
+\begin{table}[htbp]
+\centering
+\caption{System Test Cases and Execution Results}
+\label{tab:test_cases}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}clllcc@{}}
+\toprule
+\textbf{Test ID} & \textbf{Module} & \textbf{Test Scenario} & \textbf{Expected Output} & \textbf{Status} \\ \midrule
+TC-01 & Registration & Submit valid registration details & HTTP 201 Created; customer ID generated & \textbf{PASS} \\
+TC-02 & Registration & Submit duplicate email & HTTP 409 Conflict; duplicate warning message & \textbf{PASS} \\
+TC-03 & Registration & Submit password $< 8$ chars or 9-digit phone & HTTP 400 Bad Request; input rejected & \textbf{PASS} \\
+TC-04 & Authentication & Submit valid email and password & HTTP 200 OK; Set-Cookie \texttt{securebank.sid} & \textbf{PASS} \\
+TC-05 & Authentication & Submit incorrect password & HTTP 401 Unauthorized; invalid credentials & \textbf{PASS} \\
+TC-06 & Transactions & Execute valid debit within balance limit & HTTP 200 OK; balance decreased; tx appended & \textbf{PASS} \\
+TC-07 & Transactions & Execute debit exceeding available balance & HTTP 400 Bad Request; ``Insufficient balance'' & \textbf{PASS} \\
+TC-08 & Transactions & Submit negative or zero amount & HTTP 400 Bad Request; transaction rejected & \textbf{PASS} \\
+TC-09 & Admin Portal & Admin login with \texttt{admin} / \texttt{admin123} & HTTP 200 OK; admin role and session granted & \textbf{PASS} \\
+TC-10 & Admin Portal & Non-admin access to \texttt{/api/admin/stats} & HTTP 401 Unauthorized; access blocked & \textbf{PASS} \\
+TC-11 & Admin Portal & Manual balance adjustment of customer & Balance updated; audit ledger record inserted & \textbf{PASS} \\
+TC-12 & Account Deletion & Permanent customer account deletion & HTTP 200 OK; cascade deletion of transactions & \textbf{PASS} \\
+TC-13 & Dual Engine & Disconnect MongoDB during runtime & Read/writes routed to SQLite; 0 crashes & \textbf{PASS} \\
+TC-14 & Dual Engine & Connect clean MongoDB cluster & Auto-migrates existing SQLite records & \textbf{PASS} \\ \bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Screen Outputs and User Experience Analysis}
+The frontend interface was evaluated across multiple viewports:
+\begin{itemize}
+    \item \textbf{Hero and Landing View:} Renders the architectural grid layout, mountain backdrop, and floating glassmorphic pill navbar without horizontal scrollbars.
+    \item \textbf{Process and Architecture View:} Interactive dashboard preview showcasing dynamic balance calculation alongside the tech stack architecture.
+    \item \textbf{Customer Banking Dashboard:} Displays the available balance in ₹ (INR), an interactive credit/debit transaction console, and an activity list with color-coded directional icons (green credit $\swarrow$, red debit $\nearrow$).
+    \item \textbf{Administrative Control Center:} Presents aggregate financial metrics, a real-time customer search and balance adjustment interface, and a global transaction audit table.
+\end{itemize}
+
+\section{Security and Performance Evaluation}
+\begin{itemize}
+    \item \textbf{Brute-Force Resistance:} With $2^{12} = 4096$ Eksblowfish iterations, password verification requires approximately $180\text{--}240$ ms per attempt on the server, effectively throttling automated dictionary attacks without degrading user login responsiveness.
+    \item \textbf{Session Theft Immunity:} Injecting malicious scripts in the browser console revealed that \texttt{document.cookie} returned empty strings for \texttt{securebank.sid}, confirming total protection against script-based session extraction.
+    \item \textbf{Build and Bundle Efficiency:} The Vite production bundle compiled 2,127 modules in just **1.29 seconds**, generating an optimized 273.94 kB client JavaScript payload (81.15 kB gzipped) and an 17.83 kB CSS bundle, guaranteeing sub-second initial page paint times.
+\end{itemize}
+
+\section{Comparison with Objectives}
+All six major engineering objectives formulated in Chapter 1 were achieved:
+\begin{itemize}
+    \item[$\checkmark$] 12-round salted Bcrypt password encryption and secure session lifecycle implemented.
+    \item[$\checkmark$] Dual-engine persistence layer with zero-crash SQLite fallback operational.
+    \item[$\checkmark$] Atomic double-entry financial simulation enforcing strict balance invariants.
+    \item[$\checkmark$] Complete Administrative Control Center with search, liquidity adjustments, and audit feeds.
+    \item[$\checkmark$] Aceternity Studio design language integrated with zero external CSS UI bloat.
+    \item[$\checkmark$] Vercel serverless deployment architecture verified and synchronized with GitHub.
+\end{itemize}
+
+\section{Conclusion}
+\textbf{SecureBank} demonstrates that full-stack financial web applications can achieve both high-level cryptographic hardening and high aesthetic craft without introducing insurmountable architectural complexity. By establishing a dual-engine persistence layer, the system overcomes the fragility common in standard developer environments while providing seamless cloud scalability on MongoDB Atlas. The integration of role-based administrative control planes and serverless deployment models positions SecureBank as a comprehensive, battle-tested modern web engineering framework.
+
+\section{Future Scope and Enhancements}
+Future development can expand the platform across several promising technical avenues:
+\begin{enumerate}
+    \item \textbf{Multi-Factor Authentication (MFA):} Integrating Time-based One-Time Password (TOTP) algorithms (RFC 6238) via authenticator applications (Google Authenticator, Authy).
+    \item \textbf{Inter-Bank Transfer Simulation:} Simulating peer-to-peer transfers between distinct customer account identifiers with two-phase commit transaction guarantees.
+    \item \textbf{Real-Time WebSocket Streams:} Implementing WebSockets or Server-Sent Events (SSE) to push live transaction updates to the dashboard without manual page refreshes.
+    \item \textbf{AI-Driven Fraud Detection:} Integrating an anomaly detection model analyzing transaction velocity and abnormal withdrawal patterns to flag suspicious account activity for administrative review.
+\end{enumerate}

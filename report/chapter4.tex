@@ -1,0 +1,196 @@
+\chapter{System Design and Architecture}
+
+\section{System Architectural Design}
+SecureBank follows an enterprise four-tier decoupled architectural model as depicted in Figure \ref{fig:sys_arch}. The four distinct operational tiers operate collaboratively:
+
+\begin{enumerate}
+    \item \textbf{Presentation Tier (Client):} A single-page application engineered in React 19, managing local component states, client-side route views, and declarative UI rendering.
+    \item \textbf{Routing and Reverse Proxy Tier:} In local environments, Vite's internal proxy maps `/api` requests to port 5000. In production, Vercel Edge proxies route requests to serverless lambda functions.
+    \item \textbf{Application and Business Logic Tier:} A Node.js/Express REST server that parses JSON payloads, authenticates session cookies, validates permissions via middleware guards, and processes transactions.
+    \item \textbf{Persistence Tier (Dual Engine):} A unified service abstraction (\texttt{dbService}) orchestrating reads and writes to either a cloud-hosted MongoDB Atlas cluster or an embedded local SQLite engine.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1.8cm, auto]
+    \tikzstyle{block} = [rectangle, draw, fill=blue!10, text width=9em, text centered, rounded corners, minimum height=3em]
+    \tikzstyle{line} = [draw, -latex', thick]
+    
+    \node [block] (client) {\textbf{Presentation Tier}\\React 19 SPA (Vite)};
+    \node [block, right=2cm of client] (proxy) {\textbf{Proxy Tier}\\Vite Proxy / Vercel Edge};
+    \node [block, right=2cm of proxy] (server) {\textbf{Application Tier}\\Express 5 REST Engine};
+    \node [block, below=1.5cm of server] (dbService) {\textbf{Data Adapter Layer}\\\texttt{dbService}};
+    \node [block, below left=1.2cm and 0.5cm of dbService] (mongo) {\textbf{Primary Database}\\MongoDB (Mongoose)};
+    \node [block, below right=1.2cm and 0.5cm of dbService] (sqlite) {\textbf{Secondary Database}\\SQLite 3 (WAL Mode)};
+
+    \path [line] (client) -- node[above]{Fetch /api} (proxy);
+    \path [line] (proxy) -- node[above]{Forward} (server);
+    \path [line] (server) -- node[right]{Operations} (dbService);
+    \path [line] (dbService) -- node[left]{\footnotesize Online} (mongo);
+    \path [line] (dbService) -- node[right]{\footnotesize Failover} (sqlite);
+\end{tikzpicture}
+\caption{SecureBank Four-Tier System Architecture}
+\label{fig:sys_arch}
+\end{figure}
+
+\section{Data Flow Diagrams (DFD)}
+
+\subsection{Level 0 DFD (Context Level)}
+Figure \ref{fig:dfd0} illustrates the context-level data flow diagram showing interactions between the external entities (Customer and Administrator) and the SecureBank Central System.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=3cm, auto]
+    \tikzstyle{entity} = [rectangle, draw, fill=gray!20, minimum width=3cm, minimum height=1.2cm, text centered]
+    \tikzstyle{process} = [circle, draw, fill=blue!15, minimum size=3cm, text width=2.6cm, text centered]
+    \tikzstyle{line} = [draw, -latex', thick]
+    
+    \node [entity] (cust) {Customer};
+    \node [process, right=2.5cm of cust] (sys) {\textbf{SecureBank Central System}};
+    \node [entity, right=2.5cm of sys] (admin) {Administrator};
+    
+    \path [line] (cust.north east) -- node[above, sloped]{\footnotesize Signup, Login, Demo Tx} (sys.north west);
+    \path [line] (sys.south west) -- node[below, sloped]{\footnotesize Dashboard, Tx History} (cust.south east);
+    
+    \path [line] (admin.north west) -- node[above, sloped]{\footnotesize Admin Login, Adjustments} (sys.north east);
+    \path [line] (sys.south east) -- node[below, sloped]{\footnotesize Metrics, Global Audit Log} (admin.south west);
+\end{tikzpicture}
+\caption{Level 0 Context-Level Data Flow Diagram}
+\label{fig:dfd0}
+\end{figure}
+
+\subsection{Level 1 DFD}
+The Level 1 DFD decomposes the system into four major operational processes:
+\begin{enumerate}
+    \item \textbf{Process 1.0 (Customer Authentication):} Validates incoming credentials, queries user records, hashes passwords, and writes session state.
+    \item \textbf{Process 2.0 (Transaction Processing):} Receives transaction payloads, verifies available funds, performs atomic balance calculations, and appends transaction records.
+    \item \textbf{Process 3.0 (Administrative Governance):} Authenticates admin privileges, aggregates vault statistics, executes manual balance overrides, and oversees customer lifecycles.
+    \item \textbf{Process 4.0 (Persistence Routing):} Directs schema writes to the active persistence store (MongoDB or SQLite).
+\end{enumerate}
+
+\section{Unified Modeling Language (UML) Diagrams}
+
+\subsection{Use Case Diagram}
+The Use Case Diagram in Figure \ref{fig:usecase} specifies the interactions of the two primary system actors against the system boundary.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1.2cm]
+    \tikzstyle{actor} = [circle, draw, minimum size=0.8cm, fill=yellow!20]
+    \tikzstyle{usecase} = [ellipse, draw, fill=green!10, text width=7em, text centered, minimum height=1.8em]
+    \tikzstyle{line} = [draw, thick]
+    
+    \node[actor] (cust) at (0, 3) {Customer};
+    \node[actor] (admin) at (10, 3) {Admin};
+    
+    % Boundary
+    \draw[dashed, thick] (2, -1.5) rectangle (8, 7.5);
+    \node at (5, 7.1) {\textbf{SecureBank Boundary}};
+    
+    \node[usecase] (uc1) at (5, 6.2) {Register Account};
+    \node[usecase] (uc2) at (5, 4.9) {Login / Logout};
+    \node[usecase] (uc3) at (5, 3.6) {Execute Demo Tx};
+    \node[usecase] (uc4) at (5, 2.3) {View Transactions};
+    \node[usecase] (uc5) at (5, 1.0) {Delete Account};
+    \node[usecase] (uc6) at (5, -0.3) {Inspect System Stats};
+    \node[usecase] (uc7) at (5, -1.0) {Adjust Balances};
+
+    \path [line] (cust) -- (uc1);
+    \path [line] (cust) -- (uc2);
+    \path [line] (cust) -- (uc3);
+    \path [line] (cust) -- (uc4);
+    \path [line] (cust) -- (uc5);
+    
+    \path [line] (admin) -- (uc2);
+    \path [line] (admin) -- (uc5);
+    \path [line] (admin) -- (uc6);
+    \path [line] (admin) -- (uc7);
+\end{tikzpicture}
+\caption{SecureBank System Use Case Diagram}
+\label{fig:usecase}
+\end{figure}
+
+\subsection{Sequence Diagram}
+Figure \ref{fig:seq_tx} illustrates the chronological message exchange during a simulated financial transaction.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=2.2cm, auto]
+    \tikzstyle{lifeline} = [draw, dashed, thick]
+    \tikzstyle{box} = [rectangle, draw, fill=blue!10, text width=5.5em, text centered, minimum height=2em]
+    
+    \node [box] (user) at (0, 0) {Customer};
+    \node [box] (ui) at (3.2, 0) {React SPA};
+    \node [box] (api) at (6.5, 0) {Express API};
+    \node [box] (db) at (9.8, 0) {Database};
+    
+    \draw [lifeline] (user) -- (0, -6.5);
+    \draw [lifeline] (ui) -- (3.2, -6.5);
+    \draw [lifeline] (api) -- (6.5, -6.5);
+    \draw [lifeline] (db) -- (9.8, -6.5);
+    
+    \draw [-latex', thick] (0, -1.0) -- node[above]{\footnotesize Submit Amount, Type} (3.2, -1.0);
+    \draw [-latex', thick] (3.2, -1.8) -- node[above]{\footnotesize POST /api/demo-transaction} (6.5, -1.8);
+    \draw [-latex', thick] (6.5, -2.6) -- node[above]{\footnotesize Check Session \& Balance} (9.8, -2.6);
+    \draw [latex', dashed] (9.8, -3.4) -- node[above]{\footnotesize Return Balance OK} (6.5, -3.4);
+    \draw [-latex', thick] (6.5, -4.2) -- node[above]{\footnotesize Atomic Update Balance + Insert Tx} (9.8, -4.2);
+    \draw [latex', dashed] (9.8, -5.0) -- node[above]{\footnotesize Success Confirmed} (6.5, -5.0);
+    \draw [latex', dashed] (6.5, -5.6) -- node[above]{\footnotesize HTTP 200 JSON} (3.2, -5.6);
+    \draw [latex', dashed] (3.2, -6.2) -- node[above]{\footnotesize Re-render Balance Card} (0, -6.2);
+\end{tikzpicture}
+\caption{Transaction Processing Sequence Diagram}
+\label{fig:seq_tx}
+\end{figure}
+
+\section{Database Design and Entity-Relationship Modeling}
+The database schema is structured to preserve relational integrity whether executed in document-based MongoDB collections or tabular SQLite tables.
+
+\subsection{Data Dictionary}
+
+\subsubsection{Customers Entity}
+\begin{table}[htbp]
+\centering
+\caption{Data Dictionary: Customers Schema}
+\label{tab:dict_customers}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Field Name} & \textbf{Data Type} & \textbf{Constraints} & \textbf{Description} \\ \midrule
+\texttt{\_id / id} & ObjectId / INTEGER & Primary Key, Auto & Unique account identifier \\
+\texttt{name} & String / TEXT & NOT NULL & Customer full legal name \\
+\texttt{email} & String / TEXT & NOT NULL, UNIQUE & Case-normalized login email \\
+\texttt{phone} & String / TEXT & NOT NULL, Length=10 & Verified 10-digit telephone \\
+\texttt{dob} & String / TEXT & NOT NULL & ISO format birthdate (YYYY-MM-DD) \\
+\texttt{account\_type} & String / TEXT & Default: `Savings' & Account categorization \\
+\texttt{password} & String / TEXT & NOT NULL & 12-round salted Bcrypt hash \\
+\texttt{balance} & Number / REAL & Default: 10000.00 & Available balance in INR \\
+\texttt{created\_at} & Date / TIMESTAMP & Default: Current & Timestamp of account genesis \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Transactions Entity}
+\begin{table}[htbp]
+\centering
+\caption{Data Dictionary: Transactions Schema}
+\label{tab:dict_tx}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Field Name} & \textbf{Data Type} & \textbf{Constraints} & \textbf{Description} \\ \midrule
+\texttt{\_id / id} & ObjectId / INTEGER & Primary Key, Auto & Unique transaction audit identifier \\
+\texttt{customer\_id} & ObjectId / INTEGER & Foreign Key & Reference to owning Customer \\
+\texttt{customer\_name}& String / TEXT & Indexed & Snapshot of customer name \\
+\texttt{description} & String / TEXT & NOT NULL & Transaction narrative/memo \\
+\texttt{amount} & Number / REAL & NOT NULL, $>0$ & Transaction monetary value \\
+\texttt{type} & String / TEXT & `credit' $\mid$ `debit' & Cash flow direction \\
+\texttt{balance\_after}& Number / REAL & Optional & Ledger snapshot balance \\
+\texttt{created\_at} & Date / TIMESTAMP & Default: Current & Synchronous creation timestamp \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\section{User Interface Architecture}
+The frontend interface embraces the \textbf{Aceternity Studio Design Standard}, established through precise structural guidelines:
+\begin{itemize}
+    \item \textbf{Architectural Gridlines:} The main layout is encased within 1px dashed borders (\texttt{\#e2e8f0}), mimicking an architectural blueprint.
+    \item \textbf{Floating Pill Navigation:} A top glassmorphic navigation bar with a full border-radius (\texttt{9999px}) and backdrop blur (\texttt{16px}) anchors navigation without blocking vertical viewport flow.
+    \item \textbf{Visual Feedback Loop:} Critical keywords and active states are rendered with dedicated highlight pills (e.g., the glowing blue highlight around \textit{earns trust}).
+    \item \textbf{Information Hierarchy:} Financial balances are rendered in monospace typography (\texttt{JetBrains Mono}) to prevent visual horizontal jitter during number transitions.
+\end{itemize}
